@@ -17,9 +17,12 @@
 
     <div id="app">
         <!-- 載入中畫面 -->
-        <div id="loading-screen" class="min-h-screen flex flex-col items-center justify-center">
-            <i class="fas fa-circle-notch fa-spin text-5xl text-blue-500 mb-4"></i>
-            <p class="text-xl text-blue-600 font-bold">連線至雲端資料庫...</p>
+        <div id="loading-screen" class="min-h-screen flex flex-col items-center justify-center p-6 text-center">
+            <div id="loading-icon">
+                <i class="fas fa-circle-notch fa-spin text-5xl text-blue-500 mb-4"></i>
+            </div>
+            <p id="loading-text" class="text-xl text-blue-600 font-bold">正在連線至 Firebase...</p>
+            <div id="error-details" class="mt-4 text-sm text-red-500 max-w-md hidden bg-red-50 p-4 rounded-lg border border-red-200"></div>
         </div>
 
         <!-- 角色選擇畫面 -->
@@ -68,7 +71,7 @@
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, updateDoc, onSnapshot, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- 題目數據 ---
+        // 題目定義
         const QUESTIONS = [
             { q: "以下哪個字的部件不是「圭」？", options: ["鮭", "採", "佳", "娃"], correct: "採" },
             { q: "以下哪個字的偏旁不是「忄」？", options: ["快", "怕", "住", "忙"], correct: "住" },
@@ -80,9 +83,7 @@
             { q: "以下哪個字的偏旁跟其他的不一樣？", options: ["彩", "妹", "菜", "採"], correct: "妹" }
         ];
 
-        // ========================================================
-        // 已更新：您的 Firebase 專案配置 (GitHub Pages 專用)
-        // ========================================================
+        // 您的 Firebase 配置
         const firebaseConfig = {
             apiKey: "AIzaSyBRX_gukKcP3LY8H6892y-zph8bb-4iKq0",
             authDomain: "quiz-4f068.firebaseapp.com",
@@ -92,16 +93,8 @@
             appId: "1:495030127539:web:49deb8e6da2e5f4de919c6",
             measurementId: "G-295E53NEZR"
         };
-        // ========================================================
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        
-        // 遊戲實例 ID
-        const appId = 'radical-game-live-001';
-
-        // 全域狀態
+        let app, auth, db;
         let currentUser = null;
         let myRole = null; 
         let myStudentId = null;
@@ -110,76 +103,108 @@
         let answers = [];
         let timerInterval = null;
 
-        // --- 初始化 Auth ---
+        // 初始化錯誤顯示
+        function showError(title, details) {
+            document.getElementById('loading-icon').innerHTML = '<i class="fas fa-exclamation-triangle text-5xl text-red-500 mb-4"></i>';
+            document.getElementById('loading-text').className = "text-xl text-red-600 font-bold";
+            document.getElementById('loading-text').innerText = title;
+            const errDiv = document.getElementById('error-details');
+            errDiv.innerText = details;
+            errDiv.classList.remove('hidden');
+        }
+
+        // 初始化 Firebase
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+        } catch (e) {
+            showError("Firebase 初始化失敗", e.message);
+        }
+
         window.onload = async () => {
             try {
-                // 使用匿名登入
-                await signInAnonymously(auth);
-                
+                // 1. 執行匿名登入
+                const userCredential = await signInAnonymously(auth);
+                console.log("登入成功:", userCredential.user.uid);
+
+                // 2. 監聽認證狀態
                 onAuthStateChanged(auth, (user) => {
-                    currentUser = user;
                     if (user) {
-                        showUI('role-selection');
+                        currentUser = user;
+                        // 3. 開始同步數據
                         startSyncing();
+                        // 4. 顯示進入畫面
+                        showUI('role-selection');
                     }
                 });
             } catch (err) {
-                console.error("Firebase 連線錯誤:", err);
-                document.querySelector('#loading-screen p').innerHTML = 
-                    `<span class="text-red-500">連線失敗！</span><br><small class="text-gray-400 font-normal">請檢查 Firebase 配置資訊或 Firestore 權限設定。</small>`;
+                console.error("Auth Error:", err);
+                showError("無法連線至認證伺服器", "請確認 Firebase Console 中已啟用『匿名登入 (Anonymous)』功能。錯誤代碼: " + err.code);
             }
         };
 
-        // --- 同步邏輯 ---
         function startSyncing() {
-            const gameDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'gameState', 'main');
-            const studentsColRef = collection(db, 'artifacts', appId, 'public', 'data', 'students');
-            const answersColRef = collection(db, 'artifacts', appId, 'public', 'data', 'answers');
+            // 使用簡化路徑，避免複雜的階層結構
+            const gameDocRef = doc(db, 'gameState', 'main');
+            const studentsColRef = collection(db, 'students');
+            const answersColRef = collection(db, 'answers');
 
+            // 監聽遊戲狀態
             onSnapshot(gameDocRef, (snap) => {
                 if (snap.exists()) {
                     gameState = snap.data();
                     render();
                 } else {
+                    // 如果沒有初始數據，則創建一個
                     setDoc(gameDocRef, { status: 'waiting', currentQuestion: 0, startTime: 0 });
                 }
-            }, (err) => console.error("同步錯誤:", err));
+            }, (err) => {
+                console.error("Firestore Error:", err);
+                showError("資料庫存取失敗", "請確認 Firestore 規則已發佈且為開放狀態。錯誤: " + err.message);
+            });
 
+            // 監聽學生列表
             onSnapshot(studentsColRef, (snap) => {
                 students = snap.docs.map(d => d.data());
                 render();
             });
 
+            // 監聽答案列表
             onSnapshot(answersColRef, (snap) => {
                 answers = snap.docs.map(d => d.data());
                 render();
             });
 
+            // 定時器
             if (timerInterval) clearInterval(timerInterval);
             timerInterval = setInterval(() => {
                 if (gameState.status === 'active') render();
             }, 1000);
         }
 
-        // --- 操作函數 ---
-        window.showLogin = (role) => {
-            showUI(role + '-login');
-        };
+        // UI 切換
+        function showUI(id) {
+            document.querySelectorAll('#app > div').forEach(div => div.classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
+        }
 
-        window.goBack = () => {
-            showUI('role-selection');
-        };
+        // 全域函數
+        window.showLogin = (role) => showUI(role + '-login');
+        window.goBack = () => showUI('role-selection');
 
         window.doStudentLogin = async () => {
             const id = document.getElementById('student-id-input').value.trim();
             if (!id) return;
             myStudentId = id;
             myRole = 'student';
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id), {
-                id: id, score: 0, joinedAt: Date.now()
-            });
-            showUI('game-container');
-            render();
+            try {
+                await setDoc(doc(db, 'students', id), {
+                    id: id, score: 0, joinedAt: Date.now()
+                });
+                showUI('game-container');
+                render();
+            } catch (e) { alert("登入資料寫入失敗: " + e.message); }
         };
 
         window.doTeacherLogin = () => {
@@ -202,40 +227,30 @@
             const correct = QUESTIONS[gameState.currentQuestion].correct;
             const isCorrect = opt === correct;
 
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'answers', `${myStudentId}_${gameState.currentQuestion}`), {
-                studentId: myStudentId,
-                questionIndex: gameState.currentQuestion,
-                answer: opt,
-                isCorrect: isCorrect,
-                submittedAt: Date.now()
-            });
-
-            if (isCorrect) {
-                const s = students.find(x => x.id === myStudentId);
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', myStudentId), {
-                    score: (s?.score || 0) + 100
+            try {
+                await setDoc(doc(db, 'answers', `${myStudentId}_${gameState.currentQuestion}`), {
+                    studentId: myStudentId,
+                    questionIndex: gameState.currentQuestion,
+                    answer: opt,
+                    isCorrect: isCorrect,
+                    submittedAt: Date.now()
                 });
-            }
+
+                if (isCorrect) {
+                    const s = students.find(x => x.id === myStudentId);
+                    await updateDoc(doc(db, 'students', myStudentId), {
+                        score: (s?.score || 0) + 100
+                    });
+                }
+            } catch (e) { console.error(e); }
         };
 
         window.teacherNext = async () => {
-            let nextIdx = 0;
-            let nextStatus = 'active';
+            let nextIdx = (gameState.status === 'revealed') ? gameState.currentQuestion + 1 : gameState.currentQuestion;
+            let nextStatus = (nextIdx >= QUESTIONS.length) ? 'ended' : 'active';
+            if (nextIdx >= QUESTIONS.length) nextIdx = QUESTIONS.length - 1;
 
-            if (gameState.status === 'waiting') {
-                nextIdx = 0;
-            } else if (gameState.status === 'revealed') {
-                nextIdx = gameState.currentQuestion + 1;
-            } else {
-                nextIdx = gameState.currentQuestion;
-            }
-
-            if (nextIdx >= QUESTIONS.length) {
-                nextStatus = 'ended';
-                nextIdx = QUESTIONS.length - 1;
-            }
-
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'gameState', 'main'), {
+            await setDoc(doc(db, 'gameState', 'main'), {
                 status: nextStatus,
                 currentQuestion: nextIdx,
                 startTime: Date.now()
@@ -243,35 +258,26 @@
         };
 
         window.teacherReveal = async () => {
-            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'gameState', 'main'), {
-                status: 'revealed'
-            });
+            await updateDoc(doc(db, 'gameState', 'main'), { status: 'revealed' });
         };
 
         window.resetGame = async () => {
             if (!confirm("確定要重設所有資料嗎？")) return;
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'gameState', 'main'), {
-                status: 'waiting', currentQuestion: 0, startTime: 0
-            });
-            const ansSnap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'answers'));
-            for (let d of ansSnap.docs) await deleteDoc(d.ref);
-            const stdSnap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'students'));
-            for (let d of stdSnap.docs) await updateDoc(d.ref, { score: 0 });
-            alert("已成功重設！");
+            try {
+                await setDoc(doc(db, 'gameState', 'main'), { status: 'waiting', currentQuestion: 0, startTime: 0 });
+                const ansSnap = await getDocs(collection(db, 'answers'));
+                for (let d of ansSnap.docs) await deleteDoc(d.ref);
+                const stdSnap = await getDocs(collection(db, 'students'));
+                for (let d of stdSnap.docs) await updateDoc(d.ref, { score: 0 });
+            } catch (e) { alert(e.message); }
         };
-
-        function showUI(id) {
-            document.querySelectorAll('#app > div').forEach(div => div.classList.add('hidden'));
-            const target = document.getElementById(id);
-            if (target) target.classList.remove('hidden');
-        }
 
         function getTimeRemaining() {
             if (gameState.status !== 'active') return 0;
             return Math.max(0, 30 - Math.floor((Date.now() - gameState.startTime) / 1000));
         }
 
-        // --- 渲染部分 ---
+        // 渲染函數
         function render() {
             const container = document.getElementById('game-container');
             if (myRole === 'student') renderStudent(container);
@@ -348,21 +354,21 @@
             `;
 
             if (gameState.status === 'waiting') {
-                content += `<div class="bg-white p-12 rounded-2xl shadow text-center"><button onclick="teacherNext()" class="bg-emerald-500 text-white text-2xl font-bold py-5 px-16 rounded-2xl">開始發題</button></div>`;
+                content += `<div class="bg-white p-12 rounded-2xl shadow text-center"><button onclick="teacherNext()" class="bg-emerald-500 text-white text-2xl font-bold py-5 px-16 rounded-2xl shadow-lg">開始發題</button></div>`;
             } else if (gameState.status === 'active') {
                 content += `
                     <div class="bg-white p-8 rounded-2xl shadow border-2 border-emerald-400">
                         <div class="flex justify-between mb-8"><span class="font-bold">第 ${gameState.currentQuestion+1} 題</span><span class="text-3xl font-bold text-gray-600">${timeRem}s</span></div>
                         <h3 class="text-2xl font-bold mb-10">${currentQ.q}</h3>
-                        <div class="text-xl mb-4">作答進度: ${currentAnswers.length} / ${students.length}</div>
-                        <button onclick="teacherReveal()" class="bg-amber-500 text-white font-bold py-3 px-8 rounded-xl">公佈答案</button>
+                        <div class="text-xl mb-4 text-emerald-600 font-bold">已作答: ${currentAnswers.length} / ${students.length}</div>
+                        <button onclick="teacherReveal()" class="bg-amber-500 text-white font-bold py-3 px-8 rounded-xl shadow">公佈答案</button>
                     </div>
                 `;
             } else if (gameState.status === 'revealed') {
                 content += `
-                    <div class="bg-white p-8 rounded-2xl shadow">
+                    <div class="bg-white p-8 rounded-2xl shadow border-4 border-green-500">
                         <h3 class="text-2xl font-bold mb-6 text-green-600">本題正解：${currentQ.correct}</h3>
-                        <button onclick="teacherNext()" class="w-full bg-emerald-500 text-white text-xl font-bold py-4 rounded-xl">${gameState.currentQuestion === QUESTIONS.length - 1 ? '結束挑戰' : '下一題'}</button>
+                        <button onclick="teacherNext()" class="w-full bg-emerald-500 text-white text-xl font-bold py-4 rounded-xl shadow-lg">${gameState.currentQuestion === QUESTIONS.length - 1 ? '結束挑戰' : '下一題'}</button>
                     </div>
                 `;
             } else if (gameState.status === 'ended') {
@@ -370,8 +376,9 @@
             }
 
             content += `</div><div class="bg-white p-6 rounded-2xl shadow overflow-y-auto max-h-[70vh]">
-                <h3 class="font-bold mb-4">即時榜單</h3>
-                ${students.sort((a,b)=>b.score-a.score).map(s=>`<div class="flex justify-between py-1 text-sm"><span>${s.id}</span><span>${s.score}</span></div>`).join('')}
+                <h3 class="font-bold mb-4 border-b pb-2">學生連線列表</h3>
+                ${students.length === 0 ? '<p class="text-gray-400">尚無學生加入</p>' : ''}
+                ${students.sort((a,b)=>b.score-a.score).map(s=>`<div class="flex justify-between py-1 text-sm"><span>${s.id}</span><span class="font-mono">${s.score}</span></div>`).join('')}
             </div></main></div>`;
             el.innerHTML = content;
         }
