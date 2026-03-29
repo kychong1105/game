@@ -152,6 +152,12 @@
 
             onSnapshot(studentsColRef, (snap) => {
                 students = snap.docs.map(d => d.data());
+                // 如果當前學生在列表中找不到（代表已被老師重設），則強制跳回角色選擇
+                if (myRole === 'student' && myStudentId && !students.some(s => s.id === myStudentId)) {
+                    myRole = null;
+                    myStudentId = null;
+                    showUI('role-selection');
+                }
                 render();
             });
 
@@ -243,13 +249,20 @@
         };
 
         window.resetGame = async () => {
-            if (!confirm("確定要重設所有資料嗎？")) return;
+            if (!confirm("確定要重設所有資料（包含所有連線學生）嗎？")) return;
             try {
+                // 1. 重設遊戲狀態
                 await setDoc(doc(db, 'gameState', 'main'), { status: 'waiting', currentQuestion: 0, startTime: 0 });
+                
+                // 2. 刪除所有答案
                 const ansSnap = await getDocs(collection(db, 'answers'));
                 for (let d of ansSnap.docs) await deleteDoc(d.ref);
+                
+                // 3. 刪除所有學生資料 (這會讓學生端的監聽器觸發並跳回登入頁)
                 const stdSnap = await getDocs(collection(db, 'students'));
-                for (let d of stdSnap.docs) await updateDoc(d.ref, { score: 0 });
+                for (let d of stdSnap.docs) await deleteDoc(d.ref);
+                
+                alert("重設成功，所有學生已強制離線。");
             } catch (e) { alert(e.message); }
         };
 
@@ -343,7 +356,7 @@
                         <div class="flex items-center gap-3 text-emerald-600"><i class="fas fa-graduation-cap text-3xl"></i><h1 class="text-2xl font-bold">老師控制台</h1></div>
                         <div class="flex items-center gap-4">
                             <span class="bg-gray-100 px-3 py-1 rounded font-bold text-sm">已連線學生: ${students.length}</span>
-                            <button onclick="resetGame()" class="text-red-500 text-sm hover:underline"><i class="fas fa-sync"></i> 重設所有數據</button>
+                            <button onclick="resetGame()" class="text-red-500 text-sm hover:underline"><i class="fas fa-trash-alt"></i> 清空連線與重設</button>
                         </div>
                     </header>
                     <main class="flex-1 p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
