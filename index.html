@@ -3,17 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>偏旁識字小挑戰</title>
+    <title>偏旁識字打地鼠</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
-        body { font-family: 'Noto Sans TC', sans-serif; }
-        .animate-bounce-slow { animation: bounce 3s infinite; }
-        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+        body { font-family: 'Noto Sans TC', sans-serif; overflow-x: hidden; }
+        
+        /* 地洞樣式 */
+        .mole-hole {
+            background: #4a3728;
+            border-radius: 50% / 30%;
+            box-shadow: inset 0 10px 15px rgba(0,0,0,0.5);
+            position: relative;
+            height: 80px;
+            width: 120px;
+            margin: 0 auto;
+        }
+
+        /* 地鼠本體 */
+        .mole {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100%);
+            width: 90px;
+            height: 100px;
+            background: #a67c52;
+            border-radius: 50% 50% 0 0;
+            transition: transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 3px solid #634a33;
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        .mole.up { transform: translateX(-50%) translateY(0); }
+        .mole.down { transform: translateX(-50%) translateY(100%); }
+        
+        /* 答對的地鼠跳舞 */
+        .mole.winner { animation: mole-dance 0.5s infinite; }
+        @keyframes mole-dance {
+            0%, 100% { transform: translateX(-50%) translateY(-10px) rotate(0); }
+            50% { transform: translateX(-50%) translateY(-30px) rotate(5deg); }
+        }
+
+        .mole-text {
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: #fff;
+            text-shadow: 2px 2px 0px #000;
+        }
+
+        .grass {
+            background: #4ade80;
+            height: 20px;
+            width: 100%;
+            position: absolute;
+            bottom: 0;
+            border-radius: 10px;
+        }
     </style>
 </head>
-<body class="bg-amber-50 min-h-screen">
+<body class="bg-sky-100 min-h-screen">
 
     <div id="app">
         <!-- 載入中畫面 -->
@@ -21,20 +76,21 @@
             <div id="loading-icon">
                 <i class="fas fa-circle-notch fa-spin text-5xl text-blue-500 mb-4"></i>
             </div>
-            <p id="loading-text" class="text-xl text-blue-600 font-bold">正在連線至 Firebase...</p>
+            <p id="loading-text" class="text-xl text-blue-600 font-bold">正在連線至地鼠森林...</p>
             <div id="error-details" class="mt-4 text-sm text-red-500 max-w-md hidden bg-red-50 p-4 rounded-lg border border-red-200"></div>
         </div>
 
         <!-- 角色選擇畫面 -->
         <div id="role-selection" class="hidden min-h-screen flex items-center justify-center p-4">
-            <div class="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full text-center border-4 border-amber-200">
-                <h1 class="text-3xl font-bold text-amber-600 mb-8 tracking-wider">🌟 偏旁識字小挑戰 🌟</h1>
+            <div class="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full text-center border-4 border-green-200">
+                <div class="text-6xl mb-4">⛏️</div>
+                <h1 class="text-3xl font-bold text-green-700 mb-8 tracking-wider">偏旁識字打地鼠</h1>
                 <div class="space-y-4">
-                    <button onclick="showLogin('student')" class="w-full py-4 bg-blue-400 hover:bg-blue-500 text-white rounded-2xl text-2xl font-bold transition-transform hover:scale-105 flex items-center justify-center gap-3 shadow-md">
-                        <i class="fas fa-user"></i> 我是學生
+                    <button onclick="showLogin('student')" class="w-full py-4 bg-orange-400 hover:bg-orange-500 text-white rounded-2xl text-2xl font-bold transition-all hover:scale-105 shadow-md border-b-4 border-orange-600">
+                        我是學生
                     </button>
-                    <button onclick="showLogin('teacher')" class="w-full py-4 bg-emerald-400 hover:bg-emerald-500 text-white rounded-2xl text-2xl font-bold transition-transform hover:scale-105 flex items-center justify-center gap-3 shadow-md">
-                        <i class="fas fa-graduation-cap"></i> 我是老師
+                    <button onclick="showLogin('teacher')" class="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl text-2xl font-bold transition-all hover:scale-105 shadow-md border-b-4 border-emerald-700">
+                        我是老師
                     </button>
                 </div>
             </div>
@@ -42,11 +98,11 @@
 
         <!-- 學生登入 -->
         <div id="student-login" class="hidden min-h-screen flex items-center justify-center p-4">
-            <div class="bg-white p-8 rounded-3xl shadow-xl max-w-sm w-full border-4 border-blue-200 text-center">
-                <i class="fas fa-user-circle text-6xl text-blue-400 mb-4"></i>
-                <h2 class="text-2xl font-bold text-gray-700 mb-6">請輸入學號</h2>
-                <input type="text" id="student-id-input" class="w-full p-4 text-center text-2xl border-2 border-blue-200 rounded-xl mb-6 focus:outline-none focus:border-blue-400" placeholder="">
-                <button onclick="doStudentLogin()" class="w-full py-3 bg-blue-500 text-white rounded-xl text-xl font-bold hover:bg-blue-600">進入遊戲</button>
+            <div class="bg-white p-8 rounded-3xl shadow-xl max-w-sm w-full border-4 border-orange-200 text-center">
+                <h2 class="text-2xl font-bold text-gray-700 mb-6">準備好拿錘子了嗎？</h2>
+                <div class="mb-4 text-gray-500">請輸入學號</div>
+                <input type="text" id="student-id-input" class="w-full p-4 text-center text-2xl border-2 border-orange-200 rounded-xl mb-6 focus:outline-none focus:border-orange-400" placeholder="">
+                <button onclick="doStudentLogin()" class="w-full py-3 bg-orange-500 text-white rounded-xl text-xl font-bold hover:bg-orange-600 shadow-lg">進入森林</button>
                 <button onclick="goBack()" class="mt-4 text-gray-400 block w-full text-center">返回</button>
             </div>
         </div>
@@ -54,10 +110,9 @@
         <!-- 老師登入 -->
         <div id="teacher-login" class="hidden min-h-screen flex items-center justify-center p-4">
             <div class="bg-white p-8 rounded-3xl shadow-xl max-w-sm w-full border-4 border-emerald-200 text-center">
-                <i class="fas fa-chalkboard-teacher text-6xl text-emerald-400 mb-4"></i>
                 <h2 class="text-2xl font-bold text-gray-700 mb-6">老師管理登入</h2>
                 <input type="password" id="teacher-pwd-input" class="w-full p-4 text-center text-xl border-2 border-emerald-200 rounded-xl mb-6 focus:outline-none focus:border-emerald-400" placeholder="請輸入密碼">
-                <button onclick="doTeacherLogin()" class="w-full py-3 bg-emerald-500 text-white rounded-xl text-xl font-bold hover:bg-emerald-600">登入</button>
+                <button onclick="doTeacherLogin()" class="w-full py-3 bg-emerald-500 text-white rounded-xl text-xl font-bold hover:bg-emerald-600 shadow-lg">登入</button>
                 <button onclick="goBack()" class="mt-4 text-gray-400 block w-full text-center">返回</button>
             </div>
         </div>
@@ -106,7 +161,6 @@
 
         function showError(title, details) {
             document.getElementById('loading-icon').innerHTML = '<i class="fas fa-exclamation-triangle text-5xl text-red-500 mb-4"></i>';
-            document.getElementById('loading-text').className = "text-xl text-red-600 font-bold";
             document.getElementById('loading-text').innerText = title;
             const errDiv = document.getElementById('error-details');
             errDiv.innerText = details;
@@ -117,9 +171,7 @@
             app = initializeApp(firebaseConfig);
             auth = getAuth(app);
             db = getFirestore(app);
-        } catch (e) {
-            showError("Firebase 初始化失敗", e.message);
-        }
+        } catch (e) { showError("連線失敗", e.message); }
 
         window.onload = async () => {
             try {
@@ -131,9 +183,7 @@
                         showUI('role-selection');
                     }
                 });
-            } catch (err) {
-                showError("連線失敗", "請檢查網路或 Firebase 設定。代碼: " + err.code);
-            }
+            } catch (err) { showError("連線失敗", err.message); }
         };
 
         function startSyncing() {
@@ -148,15 +198,12 @@
                 } else {
                     setDoc(gameDocRef, { status: 'waiting', currentQuestion: 0, startTime: 0 });
                 }
-            }, (err) => showError("資料庫讀取失敗", err.message));
+            });
 
             onSnapshot(studentsColRef, (snap) => {
                 students = snap.docs.map(d => d.data());
-                // 如果當前學生在列表中找不到（代表已被老師重設），則強制跳回角色選擇
                 if (myRole === 'student' && myStudentId && !students.some(s => s.id === myStudentId)) {
-                    myRole = null;
-                    myStudentId = null;
-                    showUI('role-selection');
+                    myRole = null; myStudentId = null; showUI('role-selection');
                 }
                 render();
             });
@@ -167,9 +214,7 @@
             });
 
             if (timerInterval) clearInterval(timerInterval);
-            timerInterval = setInterval(() => {
-                if (gameState.status === 'active') render();
-            }, 1000);
+            timerInterval = setInterval(() => { if (gameState.status === 'active') render(); }, 1000);
         }
 
         function showUI(id) {
@@ -183,51 +228,32 @@
         window.doStudentLogin = async () => {
             const id = document.getElementById('student-id-input').value.trim();
             if (!id) return;
-            myStudentId = id;
-            myRole = 'student';
+            myStudentId = id; myRole = 'student';
             try {
-                await setDoc(doc(db, 'students', id), {
-                    id: id, score: 0, joinedAt: Date.now()
-                });
-                showUI('game-container');
-                render();
-            } catch (e) { alert("登入失敗: " + e.message); }
+                await setDoc(doc(db, 'students', id), { id: id, score: 0, joinedAt: Date.now() });
+                showUI('game-container'); render();
+            } catch (e) { alert("登入失敗"); }
         };
 
         window.doTeacherLogin = () => {
-            const pwd = document.getElementById('teacher-pwd-input').value;
-            if (pwd === '115712') {
-                myRole = 'teacher';
-                showUI('game-container');
-                render();
-            } else {
-                alert('密碼錯誤');
-            }
+            if (document.getElementById('teacher-pwd-input').value === '115712') {
+                myRole = 'teacher'; showUI('game-container'); render();
+            } else alert('密碼錯誤');
         };
 
         window.submitAnswer = async (opt) => {
             const timeRem = getTimeRemaining();
             if (gameState.status !== 'active' || timeRem <= 0) return;
-            const hasAns = answers.some(a => a.studentId === myStudentId && a.questionIndex === gameState.currentQuestion);
-            if (hasAns) return;
+            if (answers.some(a => a.studentId === myStudentId && a.questionIndex === gameState.currentQuestion)) return;
 
-            const correct = QUESTIONS[gameState.currentQuestion].correct;
-            const isCorrect = opt === correct;
-
+            const isCorrect = opt === QUESTIONS[gameState.currentQuestion].correct;
             try {
                 await setDoc(doc(db, 'answers', `${myStudentId}_${gameState.currentQuestion}`), {
-                    studentId: myStudentId,
-                    questionIndex: gameState.currentQuestion,
-                    answer: opt,
-                    isCorrect: isCorrect,
-                    submittedAt: Date.now()
+                    studentId: myStudentId, questionIndex: gameState.currentQuestion, answer: opt, isCorrect, submittedAt: Date.now()
                 });
-
                 if (isCorrect) {
                     const s = students.find(x => x.id === myStudentId);
-                    await updateDoc(doc(db, 'students', myStudentId), {
-                        score: (s?.score || 0) + 100
-                    });
+                    await updateDoc(doc(db, 'students', myStudentId), { score: (s?.score || 0) + 100 });
                 }
             } catch (e) { console.error(e); }
         };
@@ -236,43 +262,24 @@
             let nextIdx = (gameState.status === 'revealed') ? gameState.currentQuestion + 1 : gameState.currentQuestion;
             let nextStatus = (nextIdx >= QUESTIONS.length) ? 'ended' : 'active';
             if (nextIdx >= QUESTIONS.length) nextIdx = QUESTIONS.length - 1;
-
-            await setDoc(doc(db, 'gameState', 'main'), {
-                status: nextStatus,
-                currentQuestion: nextIdx,
-                startTime: Date.now()
-            });
+            await setDoc(doc(db, 'gameState', 'main'), { status: nextStatus, currentQuestion: nextIdx, startTime: Date.now() });
         };
 
-        window.teacherReveal = async () => {
-            await updateDoc(doc(db, 'gameState', 'main'), { status: 'revealed' });
-        };
+        window.teacherReveal = async () => { await updateDoc(doc(db, 'gameState', 'main'), { status: 'revealed' }); };
 
         window.resetGame = async () => {
-            if (!confirm("確定要重設所有資料（包含所有連線學生）嗎？")) return;
-            try {
-                // 1. 重設遊戲狀態
-                await setDoc(doc(db, 'gameState', 'main'), { status: 'waiting', currentQuestion: 0, startTime: 0 });
-                
-                // 2. 刪除所有答案
-                const ansSnap = await getDocs(collection(db, 'answers'));
-                for (let d of ansSnap.docs) await deleteDoc(d.ref);
-                
-                // 3. 刪除所有學生資料 (這會讓學生端的監聽器觸發並跳回登入頁)
-                const stdSnap = await getDocs(collection(db, 'students'));
-                for (let d of stdSnap.docs) await deleteDoc(d.ref);
-                
-                alert("重設成功，所有學生已強制離線。");
-            } catch (e) { alert(e.message); }
+            if (!confirm("確定要重設所有資料嗎？")) return;
+            await setDoc(doc(db, 'gameState', 'main'), { status: 'waiting', currentQuestion: 0, startTime: 0 });
+            const ansSnap = await getDocs(collection(db, 'answers'));
+            for (let d of ansSnap.docs) await deleteDoc(d.ref);
+            const stdSnap = await getDocs(collection(db, 'students'));
+            for (let d of stdSnap.docs) await deleteDoc(d.ref);
+            alert("重設成功");
         };
 
         function getTimeRemaining() {
             if (gameState.status !== 'active') return 0;
             return Math.max(0, 30 - Math.floor((Date.now() - gameState.startTime) / 1000));
-        }
-
-        function getRandomWord(arr) {
-            return arr[Math.floor(Math.random() * arr.length)];
         }
 
         function render() {
@@ -288,50 +295,65 @@
             const timeRem = getTimeRemaining();
 
             let content = `
-                <div class="min-h-screen bg-amber-50 flex flex-col">
-                    <div class="bg-white p-4 shadow flex justify-between items-center px-6">
-                        <div class="font-bold text-gray-600">學號: <span class="text-blue-600">${myStudentId}</span></div>
-                        <div class="font-bold text-amber-600 bg-amber-100 px-4 py-1 rounded-full text-sm">⭐ ${score} 分</div>
+                <div class="min-h-screen flex flex-col">
+                    <div class="bg-green-600 p-4 shadow-lg flex justify-between items-center px-6 text-white border-b-4 border-green-800">
+                        <div class="font-bold"><i class="fas fa-hammer"></i> ${myStudentId}</div>
+                        <div class="font-black bg-green-800 px-4 py-1 rounded-full">⭐ ${score}</div>
                     </div>
-                    <div class="flex-1 flex flex-col items-center justify-center p-4 max-w-2xl mx-auto w-full">
+                    <div class="flex-1 flex flex-col p-4 max-w-2xl mx-auto w-full">
             `;
 
             if (gameState.status === 'waiting') {
-                content += `<div class="text-center animate-bounce-slow"><div class="text-7xl mb-6">🎈</div><h2 class="text-3xl font-bold text-amber-600">已進入大廳！</h2><p class="text-xl text-gray-500 mt-2">請等待老師發題...</p></div>`;
-            } else if (gameState.status === 'active') {
+                content += `<div class="text-center mt-20"><div class="text-9xl mb-6">🪵</div><h2 class="text-3xl font-bold text-green-800">等待森林管理員開始...</h2></div>`;
+            } else if (gameState.status === 'active' || gameState.status === 'revealed') {
+                const isRevealed = gameState.status === 'revealed';
+                const feedbackWord = myAns?.isCorrect ? PRAISE_WORDS[Math.floor(Math.random()*PRAISE_WORDS.length)] : ENCOURAGE_WORDS[Math.floor(Math.random()*ENCOURAGE_WORDS.length)];
+
                 content += `
-                    <div class="w-full bg-white p-6 rounded-3xl shadow-xl border-4 border-amber-200 relative overflow-hidden">
-                        <div class="absolute top-0 left-0 h-2 bg-blue-500 transition-all duration-1000" style="width: ${(timeRem/30)*100}%"></div>
-                        <div class="flex justify-between mb-6 pt-2">
-                            <span class="text-gray-500 font-bold">第 ${gameState.currentQuestion+1} 題</span>
-                            <span class="text-amber-500 font-bold"><i class="fas fa-clock"></i> ${timeRem}s</span>
-                        </div>
-                        <h2 class="text-2xl font-bold text-center mb-10">${currentQ.q}</h2>
-                        <div class="grid grid-cols-2 gap-4">
-                            ${currentQ.options.map(opt => `
-                                <button onclick="submitAnswer('${opt}')" class="py-6 text-3xl font-bold rounded-2xl border-4 border-blue-100 bg-blue-50 hover:bg-blue-100 ${myAns ? 'opacity-50 cursor-not-allowed' : ''}">${opt}</button>
-                            `).join('')}
-                        </div>
-                        ${myAns ? '<p class="mt-6 text-center text-blue-500 font-bold italic">答案已送出，等待開獎...</p>' : ''}
+                    <div class="text-center mb-6">
+                        <div class="text-sm text-gray-500 font-bold mb-1">第 ${gameState.currentQuestion+1} 題</div>
+                        <h2 class="text-2xl font-black text-gray-800 bg-white p-4 rounded-2xl shadow-sm border-2 border-green-200">${currentQ.q}</h2>
                     </div>
-                `;
-            } else if (gameState.status === 'revealed') {
-                const isCorrect = myAns?.isCorrect;
-                const feedbackWord = isCorrect ? getRandomWord(PRAISE_WORDS) : getRandomWord(ENCOURAGE_WORDS);
-                content += `
-                    <div class="w-full bg-white p-8 rounded-3xl shadow-xl border-4 text-center ${isCorrect ? 'border-green-400' : 'border-red-300'}">
-                        <h2 class="text-gray-400 font-bold mb-4">正確答案</h2>
-                        <div class="text-7xl font-bold mb-8 text-green-600">${currentQ.correct}</div>
-                        <div class="${isCorrect ? 'text-green-600' : 'text-red-500'} text-3xl font-bold mb-2">
-                            ${isCorrect ? '✨ ' + feedbackWord : '💪 ' + feedbackWord}
-                        </div>
-                        <div class="text-gray-500">
-                            ${myAns ? `你選了：${myAns.answer}` : '這題你沒有作答喔～'}
-                        </div>
+
+                    <div class="grid grid-cols-2 gap-y-12 gap-x-4 mt-8">
+                        ${currentQ.options.map(opt => {
+                            let moleState = (gameState.status === 'active') ? 'up' : 'down';
+                            let winnerClass = '';
+                            if (isRevealed && opt === currentQ.correct) {
+                                moleState = 'up';
+                                winnerClass = 'winner';
+                            }
+
+                            const isSelected = myAns?.answer === opt;
+
+                            return `
+                                <div class="relative">
+                                    <div class="mole-hole">
+                                        <div onclick="submitAnswer('${opt}')" class="mole ${moleState} ${winnerClass} ${isSelected ? 'border-yellow-400 border-4' : ''}">
+                                            <div class="text-[10px] text-white opacity-50">#${opt.charCodeAt(0)}</div>
+                                            <div class="mole-text">${opt}</div>
+                                            <div class="text-xs text-white font-bold">${isSelected ? '🔨 打中了' : ''}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+
+                    <div class="mt-12 text-center">
+                        ${!isRevealed ? `
+                            <div class="inline-block bg-white px-8 py-2 rounded-full shadow-md font-bold text-xl text-orange-500">
+                                ⏳ 剩餘時間：${timeRem} 秒
+                            </div>
+                        ` : `
+                            <div class="animate-bounce inline-block bg-white px-8 py-4 rounded-3xl shadow-xl border-4 ${myAns?.isCorrect ? 'border-green-400 text-green-600' : 'border-red-400 text-red-500'} font-black text-2xl">
+                                ${myAns?.isCorrect ? '✨ ' : '💪 '}${feedbackWord}
+                            </div>
+                        `}
                     </div>
                 `;
             } else if (gameState.status === 'ended') {
-                content += `<div class="text-center bg-white p-12 rounded-3xl shadow-xl border-4 border-blue-400"><div class="text-6xl mb-6">🏆</div><h2 class="text-4xl font-bold text-amber-600">挑戰結束！</h2><p class="mt-4 text-gray-500">你的總分是：</p><div class="text-8xl font-black text-blue-500 my-4">${score}</div></div>`;
+                content += `<div class="text-center mt-20 bg-white p-12 rounded-3xl shadow-xl border-8 border-yellow-400"><div class="text-8xl mb-6">🏆</div><h2 class="text-4xl font-black text-gray-800">森林大賽結束！</h2><p class="mt-4 text-gray-500 font-bold">你的最終成就：</p><div class="text-7xl font-black text-orange-500 my-6">${score}</div><button onclick="location.reload()" class="bg-green-500 text-white px-8 py-3 rounded-full font-bold">重新開始</button></div>`;
             }
 
             content += `</div></div>`;
@@ -343,7 +365,6 @@
             const currentAnswers = answers.filter(a => a.questionIndex === gameState.currentQuestion);
             const timeRem = getTimeRemaining();
             
-            // 計算統計數據
             const stats = {};
             if (currentQ) {
                 currentQ.options.forEach(opt => stats[opt] = 0);
@@ -351,12 +372,12 @@
             }
 
             let content = `
-                <div class="min-h-screen bg-gray-50 flex flex-col">
-                    <header class="bg-white shadow px-6 py-4 flex justify-between items-center">
-                        <div class="flex items-center gap-3 text-emerald-600"><i class="fas fa-graduation-cap text-3xl"></i><h1 class="text-2xl font-bold">老師控制台</h1></div>
+                <div class="min-h-screen bg-gray-100 flex flex-col">
+                    <header class="bg-white shadow-md px-6 py-4 flex justify-between items-center border-b-4 border-emerald-500">
+                        <div class="flex items-center gap-3 text-emerald-700 font-black text-xl">⛏️ 控制台</div>
                         <div class="flex items-center gap-4">
-                            <span class="bg-gray-100 px-3 py-1 rounded font-bold text-sm">已連線學生: ${students.length}</span>
-                            <button onclick="resetGame()" class="text-red-500 text-sm hover:underline"><i class="fas fa-trash-alt"></i> 清空連線與重設</button>
+                            <span class="bg-gray-100 px-3 py-1 rounded-full font-bold text-xs">連線人數: ${students.length}</span>
+                            <button onclick="resetGame()" class="text-red-500 text-sm font-bold"><i class="fas fa-trash"></i> 重設</button>
                         </div>
                     </header>
                     <main class="flex-1 p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -364,30 +385,29 @@
             `;
 
             if (gameState.status === 'waiting') {
-                content += `<div class="bg-white p-12 rounded-2xl shadow text-center"><h2 class="text-2xl font-bold mb-6 text-gray-700">準備好開始挑戰了嗎？</h2><button onclick="teacherNext()" class="bg-emerald-500 hover:bg-emerald-600 text-white text-2xl font-bold py-5 px-16 rounded-2xl shadow-lg transition-colors">開始第一題</button></div>`;
+                content += `<div class="bg-white p-12 rounded-3xl shadow text-center border-4 border-dashed border-gray-200"><h2 class="text-2xl font-bold mb-6 text-gray-400">所有學生已準備就緒？</h2><button onclick="teacherNext()" class="bg-emerald-500 hover:bg-emerald-600 text-white text-3xl font-black py-6 px-20 rounded-2xl shadow-xl transform active:scale-95 transition-all">釋放第一題地鼠！</button></div>`;
             } else if (gameState.status === 'active' || gameState.status === 'revealed') {
                 content += `
-                    <div class="bg-white p-8 rounded-2xl shadow border-2 ${gameState.status === 'revealed' ? 'border-green-500' : 'border-emerald-400'}">
-                        <div class="flex justify-between mb-8">
-                            <span class="font-bold text-gray-500">第 ${gameState.currentQuestion+1} 題</span>
-                            <span class="text-3xl font-bold ${timeRem < 10 ? 'text-red-500 animate-pulse' : 'text-gray-600'}">${timeRem}s</span>
+                    <div class="bg-white p-8 rounded-3xl shadow border-4 ${gameState.status === 'revealed' ? 'border-green-500' : 'border-emerald-400'}">
+                        <div class="flex justify-between items-center mb-8">
+                            <span class="font-black text-gray-400">Q ${gameState.currentQuestion+1} / ${QUESTIONS.length}</span>
+                            <div class="text-4xl font-black ${timeRem < 10 ? 'text-red-500 animate-pulse' : 'text-emerald-500'}">倒數: ${timeRem}s</div>
                         </div>
-                        <h3 class="text-2xl font-bold mb-10 text-center">${currentQ.q}</h3>
+                        <h3 class="text-3xl font-black mb-12 text-center text-gray-700">「${currentQ.q}」</h3>
                         
-                        <!-- 統計分佈 -->
-                        <div class="grid grid-cols-2 gap-6 mb-10">
+                        <div class="grid grid-cols-2 gap-8 mb-12">
                             ${currentQ.options.map(opt => {
                                 const count = stats[opt];
-                                const percent = currentAnswers.length ? (count / currentAnswers.length * 100) : 0;
                                 const isCorrect = opt === currentQ.correct;
+                                const percent = currentAnswers.length ? (count / currentAnswers.length * 100) : 0;
                                 return `
-                                    <div class="relative pt-1">
-                                        <div class="flex items-center justify-between mb-2">
-                                            <div><span class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full ${isCorrect && gameState.status === 'revealed' ? 'text-green-600 bg-green-200' : 'text-blue-600 bg-blue-200'}">${opt} ${isCorrect && gameState.status === 'revealed' ? '(正解)' : ''}</span></div>
-                                            <div class="text-right"><span class="text-xs font-semibold inline-block text-blue-600">${count} 人 (${Math.round(percent)}%)</span></div>
+                                    <div class="p-4 rounded-2xl border-4 ${isCorrect && gameState.status === 'revealed' ? 'border-green-500 bg-green-50' : 'border-gray-100'}">
+                                        <div class="flex justify-between font-black text-xl mb-2">
+                                            <span>${opt} ${isCorrect && gameState.status === 'revealed' ? '✅' : ''}</span>
+                                            <span class="text-emerald-600">${count} 🔨</span>
                                         </div>
-                                        <div class="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200">
-                                            <div style="width:${percent}%" class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${isCorrect && gameState.status === 'revealed' ? 'bg-green-500' : 'bg-blue-500'}"></div>
+                                        <div class="w-full bg-gray-200 h-4 rounded-full overflow-hidden">
+                                            <div class="h-full bg-emerald-500 transition-all duration-500" style="width: ${percent}%"></div>
                                         </div>
                                     </div>
                                 `;
@@ -396,57 +416,22 @@
 
                         <div class="flex gap-4">
                             ${gameState.status === 'active' ? 
-                                `<button onclick="teacherReveal()" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-bold py-4 rounded-xl shadow transition-colors">公佈答案</button>` : 
-                                `<button onclick="teacherNext()" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-xl shadow transition-colors">${gameState.currentQuestion === QUESTIONS.length - 1 ? '結束挑戰並看排行' : '進入下一題'}</button>`
+                                `<button onclick="teacherReveal()" class="flex-1 bg-amber-500 text-white font-black py-5 rounded-2xl text-xl shadow-lg border-b-4 border-amber-700">公佈正確答案</button>` : 
+                                `<button onclick="teacherNext()" class="flex-1 bg-emerald-500 text-white font-black py-5 rounded-2xl text-xl shadow-lg border-b-4 border-emerald-700">${gameState.currentQuestion === QUESTIONS.length - 1 ? '查看大賽排行' : '下一題地鼠出發！'}</button>`
                             }
                         </div>
                     </div>
                 `;
             } else if (gameState.status === 'ended') {
-                content += `
-                    <div class="bg-white p-10 rounded-2xl shadow text-center border-t-8 border-amber-400">
-                        <h2 class="text-3xl font-bold mb-8">🏆 最終排行榜</h2>
-                        <div class="space-y-4">
-                            ${students.sort((a,b)=>b.score-a.score).slice(0,10).map((s, idx)=>`
-                                <div class="flex items-center justify-between p-4 ${idx < 3 ? 'bg-amber-50 border-2 border-amber-200' : 'bg-gray-50'} rounded-xl">
-                                    <div class="flex items-center gap-4">
-                                        <span class="text-2xl font-black ${idx===0?'text-yellow-500':idx===1?'text-gray-400':idx===2?'text-orange-400':'text-gray-300'}">${idx+1}</span>
-                                        <span class="font-bold text-lg text-gray-700">${s.id}</span>
-                                    </div>
-                                    <span class="font-black text-xl text-blue-600">${s.score} 分</span>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
+                content += `<div class="bg-white p-10 rounded-3xl shadow border-8 border-yellow-400"><h2 class="text-3xl font-black mb-8 text-center text-gray-700">🥇 森林打地鼠大賽排行榜</h2><div class="space-y-4">${students.sort((a,b)=>b.score-a.score).map((s, idx)=>`<div class="flex items-center justify-between p-5 ${idx < 3 ? 'bg-yellow-50 border-2 border-yellow-200' : 'bg-gray-50'} rounded-2xl"><div class="flex items-center gap-4"><span class="text-2xl font-black">${idx+1}</span><span class="font-bold text-xl">${s.id}</span></div><span class="font-black text-2xl text-emerald-600">${s.score} 分</span></div>`).join('')}</div></div>`;
             }
 
-            content += `</div><div class="bg-white p-6 rounded-2xl shadow overflow-hidden flex flex-col h-[80vh]">
-                <h3 class="font-bold mb-4 border-b pb-2 flex justify-between">
-                    <span>學生即時狀態</span>
-                    <span class="text-xs text-gray-400">已作答: ${currentAnswers.length} / ${students.length}</span>
-                </h3>
+            content += `</div><div class="bg-white p-6 rounded-3xl shadow flex flex-col h-[80vh] border-l-4 border-emerald-100">
+                <h3 class="font-black mb-4 flex justify-between text-gray-500"><span>地鼠動態</span><span>${currentAnswers.length}/${students.length}</span></h3>
                 <div class="overflow-y-auto flex-1 space-y-2">
-                    ${students.length === 0 ? '<p class="text-gray-400 text-center py-10">尚無學生加入</p>' : ''}
                     ${students.sort((a,b)=>a.id.localeCompare(b.id)).map(s=>{
                         const ans = answers.find(a => a.studentId === s.id && a.questionIndex === gameState.currentQuestion);
-                        let statusHTML = '';
-                        if (gameState.status === 'active' || gameState.status === 'revealed') {
-                            if (ans) {
-                                statusHTML = `<span class="px-2 py-1 rounded bg-blue-100 text-blue-600 font-bold text-xs">${ans.answer}</span>`;
-                            } else {
-                                statusHTML = `<span class="px-2 py-1 rounded bg-gray-100 text-gray-400 text-xs italic">未答</span>`;
-                            }
-                        }
-                        return `
-                            <div class="flex justify-between items-center p-3 rounded-lg border border-gray-100 hover:bg-gray-50">
-                                <div class="flex flex-col">
-                                    <span class="font-bold text-gray-700">${s.id}</span>
-                                    <span class="text-[10px] text-gray-400">累積分數: ${s.score}</span>
-                                </div>
-                                <div>${statusHTML}</div>
-                            </div>
-                        `;
+                        return `<div class="flex justify-between items-center p-3 rounded-xl border border-gray-100 hover:bg-gray-50"><div><div class="font-black text-gray-700">${s.id}</div><div class="text-[10px] text-gray-400">積分: ${s.score}</div></div><div>${ans ? `<span class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 font-black">${ans.answer}</span>` : `<span class="text-gray-300 italic text-sm">挖掘中...</span>`}</div></div>`;
                     }).join('')}
                 </div>
             </div></main></div>`;
